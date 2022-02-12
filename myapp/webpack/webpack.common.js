@@ -1,136 +1,97 @@
-const path = require('path');
 const webpack = require('webpack');
-const { merge } = require('webpack-merge');
+const { BaseHrefWebpackPlugin } = require('base-href-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
-const ESLintPlugin = require('eslint-webpack-plugin');
+const rxPaths = require('rxjs/_esm5/path-mapping');
+const MergeJsonWebpackPlugin = require("merge-jsons-webpack-plugin");
+
 const utils = require('./utils.js');
-const environment = require('./environment');
 
-const getTsLoaderRule = env => {
-  const rules = [
-    {
-      loader: 'thread-loader',
-      options: {
-        // There should be 1 cpu for the fork-ts-checker-webpack-plugin.
-        // The value may need to be adjusted (e.g. to 1) in some CI environments,
-        // as cpus() may report more cores than what are available to the build.
-        workers: require('os').cpus().length - 1,
-      },
-    },
-    {
-      loader: 'ts-loader',
-      options: {
-        transpileOnly: true,
-        happyPackMode: true,
-      },
-    },
-  ];
-  return rules;
-};
-
-module.exports = async options => {
-  const development = options.env === 'development';
-  return merge(
-    {
-      cache: {
-        // 1. Set cache type to filesystem
-        type: 'filesystem',
-        cacheDirectory: path.resolve(__dirname, '../target/webpack'),
-        buildDependencies: {
-          // 2. Add your config as buildDependency to get cache invalidation on config change
-          config: [
-            __filename,
-            path.resolve(__dirname, `webpack.${development ? 'dev' : 'prod'}.js`),
-            path.resolve(__dirname, 'environment.js'),
-            path.resolve(__dirname, 'utils.js'),
-            path.resolve(__dirname, '../postcss.config.js'),
-            path.resolve(__dirname, '../tsconfig.json'),
-          ],
-        },
-      },
-      resolve: {
-        extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
+module.exports = (options) => ({
+    resolve: {
+        extensions: ['.ts', '.js'],
         modules: ['node_modules'],
-        alias: utils.mapTypescriptAliasToWebpackAlias(),
-        fallback: {
-          path: require.resolve('path-browserify'),
-        },
-      },
-      module: {
+        alias: {
+            app: utils.root('src/main/webapp/app/'),
+            ...rxPaths()
+        }
+    },
+    stats: {
+        children: false
+    },
+    module: {
         rules: [
-          {
-            test: /\.tsx?$/,
-            use: getTsLoaderRule(options.env),
-            include: [utils.root('./src/main/webapp/app')],
-            exclude: [utils.root('node_modules')],
-          },
-          /*
-       ,
-       Disabled due to https://github.com/jhipster/generator-jhipster/issues/16116
-       Can be enabled with @reduxjs/toolkit@>1.6.1 
-      {
-        enforce: 'pre',
-        test: /\.jsx?$/,
-        loader: 'source-map-loader'
-      }
-      */
-        ],
-      },
-      stats: {
-        children: false,
-      },
-      optimization: {
-        splitChunks: {
-          cacheGroups: {
-            commons: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              chunks: 'all',
-            },
-          },
-        },
-      },
-      plugins: [
-        new webpack.EnvironmentPlugin({
-          // react-jhipster requires LOG_LEVEL config.
-          LOG_LEVEL: development ? 'info' : 'error',
-        }),
-        new webpack.DefinePlugin({
-          DEVELOPMENT: JSON.stringify(development),
-          VERSION: JSON.stringify(environment.VERSION),
-          SERVER_API_URL: JSON.stringify(environment.SERVER_API_URL),
-        }),
-        new ESLintPlugin({
-          extensions: ['js', 'ts', 'jsx', 'tsx'],
-        }),
-        new ForkTsCheckerWebpackPlugin(),
-        new CopyWebpackPlugin({
-          patterns: [
             {
-              context: './node_modules/swagger-ui-dist/',
-              from: '*.{js,css,html,png}',
-              to: 'swagger-ui/',
-              globOptions: { ignore: ['**/index.html'] },
+                test: /\.html$/,
+                loader: 'html-loader',
+                options: {
+                    minimize: true,
+                    caseSensitive: true,
+                    removeAttributeQuotes:false,
+                    minifyJS:false,
+                    minifyCSS:false
+                },
+                exclude: /(src\/main\/webapp\/index.html)/
             },
-            { from: './node_modules/axios/dist/axios.min.js', to: 'swagger-ui/' },
-            { from: './src/main/webapp/swagger-ui/', to: 'swagger-ui/' },
-            { from: './src/main/webapp/content/', to: 'content/' },
+            {
+                test: /\.(jpe?g|png|gif|svg|woff2?|ttf|eot)$/i,
+                loader: 'file-loader',
+                options: {
+                    digest: 'hex',
+                    hash: 'sha512',
+                    name: 'content/[hash].[ext]'
+                }
+            },
+            {
+                test: /manifest.webapp$/,
+                loader: 'file-loader',
+                options: {
+                    name: 'manifest.webapp'
+                }
+            },
+            // Ignore warnings about System.import in Angular
+            { test: /[\/\\]@angular[\/\\].+\.js$/, parser: { system: true } },
+        ]
+    },
+    plugins: [
+        new webpack.DefinePlugin({
+            'process.env': {
+                NODE_ENV: `'${options.env}'`,
+                BUILD_TIMESTAMP: `'${new Date().getTime()}'`,
+                VERSION: `'${utils.parseVersion()}'`,
+                DEBUG_INFO_ENABLED: options.env === 'development',
+                // The root URL for API calls, ending with a '/' - for example: `"https://www.jhipster.tech:8081/myservice/"`.
+                // If this URL is left empty (""), then it will be relative to the current context.
+                // If you use an API server, in `prod` mode, you will need to enable CORS
+                // (see the `jhipster.cors` common JHipster property in the `application-*.yml` configurations)
+                SERVER_API_URL: `''`
+            }
+        }),
+        new CopyWebpackPlugin([
+            { from: './node_modules/swagger-ui/dist/css', to: 'swagger-ui/dist/css' },
+            { from: './node_modules/swagger-ui/dist/lib', to: 'swagger-ui/dist/lib' },
+            { from: './node_modules/swagger-ui/dist/swagger-ui.min.js', to: 'swagger-ui/dist/swagger-ui.min.js' },
+            { from: './src/main/webapp/swagger-ui/', to: 'swagger-ui' },
+            { from: './src/main/webapp/content/', to: 'content' },
             { from: './src/main/webapp/favicon.ico', to: 'favicon.ico' },
             { from: './src/main/webapp/manifest.webapp', to: 'manifest.webapp' },
             // jhipster-needle-add-assets-to-webpack - JHipster will add/remove third-party resources in this array
-            { from: './src/main/webapp/robots.txt', to: 'robots.txt' },
-          ],
+            { from: './src/main/webapp/robots.txt', to: 'robots.txt' }
+        ]),
+        new MergeJsonWebpackPlugin({
+            output: {
+                groupBy: [
+                    { pattern: "./src/main/webapp/i18n/zh-cn/*.json", fileName: "./i18n/zh-cn.json" }
+                    // jhipster-needle-i18n-language-webpack - JHipster will add/remove languages in this array
+                ]
+            }
         }),
         new HtmlWebpackPlugin({
-          template: './src/main/webapp/index.html',
-          chunksSortMode: 'auto',
-          inject: 'body',
-          base: '/',
+            template: './src/main/webapp/index.html',
+            chunks: ['vendors', 'polyfills', 'main', 'global'],
+            chunksSortMode: 'manual',
+            inject: 'body'
         }),
-      ],
-    }
-    // jhipster-needle-add-webpack-config - JHipster will add custom config
-  );
-};
+        new BaseHrefWebpackPlugin({ baseHref: '/' })
+    ]
+});

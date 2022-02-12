@@ -1,36 +1,39 @@
 package com.ruowei.myapp.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
-
-import com.ruowei.myapp.IntegrationTest;
+import com.ruowei.myapp.MyappApp;
 import com.ruowei.myapp.config.Constants;
 import com.ruowei.myapp.domain.User;
 import com.ruowei.myapp.repository.UserRepository;
-import com.ruowei.myapp.service.dto.AdminUserDTO;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Optional;
+import com.ruowei.myapp.service.dto.UserDTO;
+import com.ruowei.myapp.service.util.RandomUtil;
+
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.auditing.AuditingHandler;
 import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
-import tech.jhipster.security.RandomUtil;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 /**
  * Integration tests for {@link UserService}.
  */
-@IntegrationTest
+@SpringBootTest(classes = MyappApp.class)
 @Transactional
-class UserServiceIT {
+public class UserServiceIT {
 
     private static final String DEFAULT_LOGIN = "johndoe";
 
@@ -42,7 +45,7 @@ class UserServiceIT {
 
     private static final String DEFAULT_IMAGEURL = "http://placehold.it/50x50";
 
-    private static final String DEFAULT_LANGKEY = "dummy";
+    private static final String DEFAULT_LANGKEY = "en";
 
     @Autowired
     private UserRepository userRepository;
@@ -53,7 +56,7 @@ class UserServiceIT {
     @Autowired
     private AuditingHandler auditingHandler;
 
-    @MockBean
+    @Mock
     private DateTimeProvider dateTimeProvider;
 
     private User user;
@@ -76,7 +79,7 @@ class UserServiceIT {
 
     @Test
     @Transactional
-    void assertThatUserMustExistToResetPassword() {
+    public void assertThatUserMustExistToResetPassword() {
         userRepository.saveAndFlush(user);
         Optional<User> maybeUser = userService.requestPasswordReset("invalid.login@localhost");
         assertThat(maybeUser).isNotPresent();
@@ -90,7 +93,7 @@ class UserServiceIT {
 
     @Test
     @Transactional
-    void assertThatOnlyActivatedUserCanRequestPasswordReset() {
+    public void assertThatOnlyActivatedUserCanRequestPasswordReset() {
         user.setActivated(false);
         userRepository.saveAndFlush(user);
 
@@ -101,7 +104,7 @@ class UserServiceIT {
 
     @Test
     @Transactional
-    void assertThatResetKeyMustNotBeOlderThan24Hours() {
+    public void assertThatResetKeyMustNotBeOlderThan24Hours() {
         Instant daysAgo = Instant.now().minus(25, ChronoUnit.HOURS);
         String resetKey = RandomUtil.generateResetKey();
         user.setActivated(true);
@@ -116,7 +119,7 @@ class UserServiceIT {
 
     @Test
     @Transactional
-    void assertThatResetKeyMustBeValid() {
+    public void assertThatResetKeyMustBeValid() {
         Instant daysAgo = Instant.now().minus(25, ChronoUnit.HOURS);
         user.setActivated(true);
         user.setResetDate(daysAgo);
@@ -130,7 +133,7 @@ class UserServiceIT {
 
     @Test
     @Transactional
-    void assertThatUserCanResetPassword() {
+    public void assertThatUserCanResetPassword() {
         String oldPassword = user.getPassword();
         Instant daysAgo = Instant.now().minus(2, ChronoUnit.HOURS);
         String resetKey = RandomUtil.generateResetKey();
@@ -150,36 +153,47 @@ class UserServiceIT {
 
     @Test
     @Transactional
-    void assertThatNotActivatedUsersWithNotNullActivationKeyCreatedBefore3DaysAreDeleted() {
+    public void testFindNotActivatedUsersByCreationDateBefore() {
         Instant now = Instant.now();
         when(dateTimeProvider.getNow()).thenReturn(Optional.of(now.minus(4, ChronoUnit.DAYS)));
         user.setActivated(false);
-        user.setActivationKey(RandomStringUtils.random(20));
         User dbUser = userRepository.saveAndFlush(user);
         dbUser.setCreatedDate(now.minus(4, ChronoUnit.DAYS));
         userRepository.saveAndFlush(user);
-        Instant threeDaysAgo = now.minus(3, ChronoUnit.DAYS);
-        List<User> users = userRepository.findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(threeDaysAgo);
+        List<User> users = userRepository.findAllByActivatedIsFalseAndCreatedDateBefore(now.minus(3, ChronoUnit.DAYS));
         assertThat(users).isNotEmpty();
         userService.removeNotActivatedUsers();
-        users = userRepository.findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(threeDaysAgo);
+        users = userRepository.findAllByActivatedIsFalseAndCreatedDateBefore(now.minus(3, ChronoUnit.DAYS));
         assertThat(users).isEmpty();
     }
 
     @Test
     @Transactional
-    void assertThatNotActivatedUsersWithNullActivationKeyCreatedBefore3DaysAreNotDeleted() {
-        Instant now = Instant.now();
-        when(dateTimeProvider.getNow()).thenReturn(Optional.of(now.minus(4, ChronoUnit.DAYS)));
-        user.setActivated(false);
-        User dbUser = userRepository.saveAndFlush(user);
-        dbUser.setCreatedDate(now.minus(4, ChronoUnit.DAYS));
-        userRepository.saveAndFlush(user);
-        Instant threeDaysAgo = now.minus(3, ChronoUnit.DAYS);
-        List<User> users = userRepository.findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(threeDaysAgo);
-        assertThat(users).isEmpty();
-        userService.removeNotActivatedUsers();
-        Optional<User> maybeDbUser = userRepository.findById(dbUser.getId());
-        assertThat(maybeDbUser).contains(dbUser);
+    public void assertThatAnonymousUserIsNotGet() {
+        user.setLogin(Constants.ANONYMOUS_USER);
+        if (!userRepository.findOneByLogin(Constants.ANONYMOUS_USER).isPresent()) {
+            userRepository.saveAndFlush(user);
+        }
+        final PageRequest pageable = PageRequest.of(0, (int) userRepository.count());
+        final Page<UserDTO> allManagedUsers = userService.getAllManagedUsers(pageable);
+        assertThat(allManagedUsers.getContent().stream()
+            .noneMatch(user -> Constants.ANONYMOUS_USER.equals(user.getLogin())))
+            .isTrue();
     }
+
+
+    @Test
+    @Transactional
+    public void testRemoveNotActivatedUsers() {
+        // custom "now" for audit to use as creation date
+        when(dateTimeProvider.getNow()).thenReturn(Optional.of(Instant.now().minus(30, ChronoUnit.DAYS)));
+
+        user.setActivated(false);
+        userRepository.saveAndFlush(user);
+
+        assertThat(userRepository.findOneByLogin(DEFAULT_LOGIN)).isPresent();
+        userService.removeNotActivatedUsers();
+        assertThat(userRepository.findOneByLogin(DEFAULT_LOGIN)).isNotPresent();
+    }
+
 }
