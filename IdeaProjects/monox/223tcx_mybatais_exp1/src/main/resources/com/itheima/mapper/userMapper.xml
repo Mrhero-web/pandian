@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.itheima.mapper.userMapper">
+    <!--Student findStudentByNameAndMajor(Student student);-->
+
+    <select id="findStudent" parameterType="com.itheima.pojo.User"
+            resultType="java.util.ArrayList">
+        SELECT*FROM users WHERE 1=1
+
+        <trim prefix="where" prefixOverrides="and">
+            <choose>
+                <when test="name!=null and name!=''">
+                    and name = #{name}
+                </when>
+                <when test="major!=null and major!=''">
+                    and major = #{major}
+                </when>
+                <otherwise>
+                    and xuehao is not null
+                </otherwise>
+            </choose>
+        </trim>
+    </select>
+
+    <select id = "findStudentById" parameterType="java.util.Arrays"
+            resultType="com.itheima.pojo.User">
+        select * from users where id in
+        <foreach item="id" index="index" collection="list"
+                 open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <update id="updateStudent" parameterType="com.itheima.pojo.User">
+        update users
+        <set>
+            <if test="name!=null and name!=''">
+                name = #{name},
+            </if>
+            <if test="id!=null and id!=''">
+                id = #{id},
+            </if>
+            <if test="major !=null and major!=''">
+                major = #{major},
+            </if>
+        </set>
+        where id=#{id}
+    </update>
+</mapper>
+
+

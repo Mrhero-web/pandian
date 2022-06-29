@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.atguigu.mybatis.mapper.UserMapper"><!--java包下用.-->
+    <cache>
+
+    </cache>
+    <select id="findUserWithOrders" parameterType="Integer"
+                                    resultMap="UserWithOrdersResult">
+        select u.*,o.id ,o.number
+        from users u, orders o
+        where u.id=o.user_id
+        and u.id = #{id}
+    </select>
+    <resultMap type = "User" id ="UserWithOrdersResult">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="address" column="address"/>
+        <collection property="ordersList" ofType="Orders">
+            <id property="id" column="id"/>
+            <result property="number" column="number"/>
+        </collection>
+    </resultMap>
+
+    <!--&lt;!&ndash;int insertUser();&ndash;&gt;
+    <insert id="insertUser">
+        insert into users values(4,'田春晓',23,"董事长")
+    </insert>
+
+    &lt;!&ndash;void updateUser();&ndash;&gt;
+    <update id="updateUser">
+        update users set position = '老板' where id = 4
+    </update>
+
+&lt;!&ndash;User getUserById();&ndash;&gt;
+    <select id="getUserById" resultType="com.atguigu.mybatis.pojo.User" parameterType="Integer">
+        select * from users where id = #{id}
+    </select>
+   &lt;!&ndash; void deleteUserById();&ndash;&gt;
+    <delete id="deleteUserById" parameterType="Integer">
+        delete from users where id = #{id}
+    </delete>
+    <select id = "findUserByNameAndAge"
+            parameterType="User"
+            resultType="User">
+        SELECT*FROM users where =  1=1
+        <if test="name!=null and name !=''" >
+            and name like concat('%',#{name},'%')
+        </if>
+        <if test="age!=null and age !=''" >
+            and age=#{age}
+        </if>
+    </select>
+    <select id = "findUserByNameOrAge"
+            parameterType="User"
+            resultType="User">
+        SELECT*FROM users where =  1=1
+        <choose>
+            <when test="name!=null and name!=''">
+                and name like concat('%',#{name},'%')
+            </when >
+            <when test = "age!=null amd name!=''">
+                and age=#{age}
+            </when>
+            <otherwise>
+                and position is not null
+            </otherwise>
+        </choose>
+    </select>-->
+    <!--    List<User> getAllUsers();-->
+    <!--<select id="getAllUsers" resultType="com.atguigu.mybatis.pojo.User">
+        select * from users
+    </select>-->
+    <!--User getUserByUsername(String username);-->
+
+    <!--<select id="getUserByUsername" resultType="com.atguigu.mybatis.pojo.User">
+        select * from users where uname ='${username}'
+        /*select * from users where uname =#{username}*/
+    </select>-->
+    <!--User checkLogin(String uname , String password);-->
+    <!--<select id="checkLogin" resultType="com.atguigu.mybatis.pojo.User">
+        select * from where uname =#{arg0} and password = #{arg1}
+    </select>-->
+
+    <!--User checkLogin2(Map<String ,Object> map);-->
+
+    <!--<select id="checkLoginByMap" resultType="com.atguigu.mybatis.pojo.User">
+        select * from users where uname =#{uname} and password = #{password}
+    </select>-->
+    <!--    int insertUser(User user);-->
+    <!--<select id="insertUser" resultType="com.atguigu.mybatis.pojo.User">
+        insert into users values(null,#{uname},#{uage})
+    </select>-->
+    <!--User checkLoginByParam(@Param("uname") String uname , @Param("password") String password);-->
+   <!-- <select id="checkLoginByParam" resultType="com.atguigu.mybatis.pojo.User">
+        select * from users where uname =#{uname} and password = #{password}
+    </select>-->
+    <!--数据库支持主键自增-->
+ <!--   <insert id="addUser" parameterType="com.itheima.pojo.User">
+        <selectKey keyProperty="uid" resultType="Integer" order="AFTER">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+        INSERT INTO users(uid,uname,uage) values(#{uid},#{uname}#{uage});
+    </insert>-->
+    <!--数据库不支持主键自增-->
+   <!-- <insert id="addUser" parameterType="com.itheima.pojo.User">
+        <selectKey keyProperty="uid" resultType="Integer" order="BEFORE">
+            SELECT FLOOR(RAND()*1000+1)
+        </selectKey>
+        INSERT INTO users(uid,uname,uage) values(#{uid},#{uname}#{uage});
+    </insert>-->
+</mapper>
+<!--SQL语句中insert（）最后一个数据字段后没有逗号-->
